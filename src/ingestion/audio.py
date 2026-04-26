@@ -5,6 +5,8 @@ import scipy.io.wavfile as wav
 import os
 import time
 from datetime import datetime
+import io
+from src.utils.encryption import encrypt_data
 
 class AudioRecorder:
     def __init__(self, output_dir="data/audio_chunks", sample_rate=16000, duration=30, threshold=0.01):
@@ -40,20 +42,36 @@ class AudioRecorder:
         
         # Check silence
         if self.is_silent(recording):
-            print("creating silence... (discarded)")
+            print("Silence detected... (discarded)")
             return None
         
-        # Save file
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = os.path.join(self.output_dir, f"audio_{timestamp}.wav")
+        # Write to an in-memory buffer
+        buffer = io.BytesIO()
+        wav.write(buffer, self.sample_rate, recording)
+        buffer.seek(0)
+        audio_bytes = buffer.read()
         
-        # Scipy expects int16 or float32. We recorded in float32.
-        wav.write(filename, self.sample_rate, recording)
-        print(f"[Saved Audio] {filename}")
+        # Encrypt the audio data
+        encrypted_data = encrypt_data(audio_bytes)
+        
+        # Save encrypted data to file
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = os.path.join(self.output_dir, f"audio_{timestamp}.wav.enc") # Add .enc extension
+        
+        with open(filename, "wb") as f:
+            f.write(encrypted_data)
+            
+        print(f"[Saved & Encrypted Audio] {filename}")
         return filename
 
 if __name__ == "__main__":
-    recorder = AudioRecorder(duration=10) # 10s chunks for testing
+    from config import Config
+    from src.utils.logger import logger
+    recorder = AudioRecorder(
+        output_dir=Config.AUDIO_CHUNKS_DIR,
+        sample_rate=Config.AUDIO_SAMPLE_RATE,
+        duration=Config.AUDIO_CHUNK_DURATION
+    )
     try:
         while True:
             recorder.record_chunk()

@@ -5,6 +5,7 @@ import cv2
 import time
 import os
 from datetime import datetime
+from src.utils.encryption import encrypt_data
 
 class ScreenRecorder:
     def __init__(self, output_dir="data/screenshots", similarity_threshold=0.9):
@@ -37,29 +38,44 @@ class ScreenRecorder:
             
             # Check for duplicates
             if self.prev_frame is not None:
+                # Using a simple and fast MSE for similarity check
                 diff = self._compute_similarity(self.prev_frame, frame)
-                # If difference is low (screen didn't change), skip saving
-                if diff < 100:  # Threshold needs tuning based on resolution
+                if diff < 100:  # This threshold may need tuning
                     return None
 
             self.prev_frame = frame
             
-            # Save file
+            # Encode image to memory buffer
+            is_success, buffer = cv2.imencode(".png", frame)
+            if not is_success:
+                print("[Error] Could not encode image to buffer.")
+                return None
+            
+            # Encrypt the image data
+            image_bytes = buffer.tobytes()
+            encrypted_data = encrypt_data(image_bytes)
+
+            # Save encrypted data to file
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            filename = os.path.join(self.output_dir, f"screen_{timestamp}.png")
+            filename = os.path.join(self.output_dir, f"screen_{timestamp}.png.enc") # Add .enc extension
             
-            # Downscale for storage efficiency (Optional)
-            # frame = cv2.resize(frame, (1920, 1080)) 
-            
-            cv2.imwrite(filename, frame)
-            print(f"[Captured] {filename}")
+            with open(filename, "wb") as f:
+                f.write(encrypted_data)
+                
+            print(f"[Captured & Encrypted] {filename}")
             return filename
 
 if __name__ == "__main__":
-    recorder = ScreenRecorder()
+    # Make sure to add config and logger if you run this standalone
+    from config import Config
+    from src.utils.logger import logger
+    recorder = ScreenRecorder(
+        output_dir=Config.SCREENSHOTS_DIR, 
+        similarity_threshold=Config.SSIM_THRESHOLD
+    )
     try:
         while True:
             recorder.capture()
-            time.sleep(2) # Snap every 2 seconds
+            time.sleep(Config.SCREEN_CAPTURE_INTERVAL)
     except KeyboardInterrupt:
         print("Stopping recording...")

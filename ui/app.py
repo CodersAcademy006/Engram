@@ -7,6 +7,8 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.api.rag import GhostBrain
+from src.utils.encryption import decrypt_data
+from config import Config
 
 st.set_page_config(page_title="Ghost-OS", page_icon="👻", layout="wide")
 
@@ -38,12 +40,6 @@ if "messages" not in st.session_state:
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-        # If there are images associated with this message, show them
-        if "images" in message and message["images"]:
-            cols = st.columns(len(message["images"]))
-            for i, img_path in enumerate(message["images"]):
-                with cols[i]:
-                    st.image(img_path, caption=f"Evidence {i+1}", width=300)
 
 # Input
 if prompt := st.chat_input("Ask about your digital history..."):
@@ -59,27 +55,34 @@ if prompt := st.chat_input("Ask about your digital history..."):
             
             st.markdown(response_text)
             
-            # 3. Show Evidence
-            evidence_images = []
+            # 3. Show Evidence (with decryption)
             if sources:
                 st.markdown("---")
                 st.caption("🔍 Source Evidence:")
-                cols = st.columns(len(sources))
+                # Limit the number of columns to avoid overcrowding
+                cols = st.columns(min(len(sources), 4)) 
                 for i, doc in enumerate(sources):
-                    with cols[i]:
-                        # Show some metadata
+                    with cols[i % 4]:
                         st.caption(f"Source: {doc['source'].upper()}")
                         
-                        # If it's a screenshot, show it
-                        if doc['source'] == 'screen' and os.path.exists(doc['filepath']):
-                            st.image(doc['filepath'], use_container_width=True)
-                            evidence_images.append(doc['filepath'])
-                        elif doc['source'] == 'audio':
-                            st.audio(doc['filepath'])
+                        filepath = doc.get('filepath')
+                        if filepath and os.path.exists(filepath):
+                            try:
+                                with open(filepath, 'rb') as f:
+                                    encrypted_data = f.read()
+                                
+                                # Decrypt data before displaying
+                                decrypted_data = decrypt_data(encrypted_data)
+
+                                if doc['source'] == 'screen':
+                                    st.image(decrypted_data, use_container_width=True)
+                                elif doc['source'] == 'audio':
+                                    st.audio(decrypted_data)
+                            except Exception as e:
+                                st.error(f"Could not display evidence: {e}")
                             
-            # Save to history
+            # Save response to history (simplified: not re-displaying evidence)
             st.session_state.messages.append({
                 "role": "assistant", 
                 "content": response_text,
-                "images": evidence_images
             })
