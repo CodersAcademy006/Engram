@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  ghost-os:
+    build: .
+    container_name: ghost-os
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped

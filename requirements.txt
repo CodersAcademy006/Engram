@@ -1,0 +1,15 @@
+mss==9.0.1
+numpy>=1.26.0
+opencv-python>=4.8.0
+sounddevice==0.4.6
+scipy>=1.11.0
+cryptography>=41.0.0
+schedule==1.2.0
+faster-whisper>=1.0.0    # Changed: bumped to latest stable version
+easyocr==1.7.1
+lancedb==0.5.1
+sentence-transformers==2.3.1
+torch>=2.1.2 --index-url https://download.pytorch.org/whl/cpu
+ollama>=0.1.6
+streamlit>=1.28.0
+av>=11.0.0               # Added: Explicitly requesting a modern binary
